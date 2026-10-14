@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swindle Docs</title>
+<meta name="description" content="Documentation for Swindle, a dwl fork with dwindle tiling and Lua config.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+<nav>
+<a class="brand" href="#top">swindle</a>
+<div class="links">
+<a href="#about">About</a>
+<a href="#install">Install</a>
+<a href="#config">Config</a>
+<a href="#reference">Reference</a>
+<a href="#actions">Actions</a>
+<a href="#trouble">Help</a>
+<a href="https://github.com/hakuxyz/swindle">GitHub</a>
+</div>
+</nav>
+</header>
+<main id="top">
+<section class="hero">
+<h1>Swindle</h1>
+<p>A dwl fork with dwindle tiling and a Lua config that hot-reloads. The poor man's Hyprland.</p>
+<div class="badges">
+<span>wlroots 0.20</span>
+<span>Lua 5.4</span>
+<span>C11</span>
+</div>
+</section>
+<section id="about">
+<h2>About</h2>
+<p>Swindle began at <a href="https://github.com/kantiankant/swindle">kantiankant/swindle</a>, which is now archived. It lives on at <a href="https://github.com/hakuxyz/swindle">hakuxyz/swindle</a>, where it is actively maintained.</p>
+<p>Under the hood it is <a href="https://codeberg.org/dwl/dwl">dwl</a> with a different personality: one tiling layout (dwindle, a binary-split tree), configuration in Lua instead of a header file, live reload on save, split touchpad and mouse settings, a configurable keyboard layout, and a dwl-IPC client called <code>smsg</code> for bars and scripts.</p>
+</section>
+<section id="install">
+<h2>Install</h2>
+<p>On CachyOS or Arch, install the dependencies:</p>
+<pre><code>sudo pacman -S base-devel wlroots0.20 wayland wayland-protocols libinput libxkbcommon lua54 libxcb xcb-util-wm pixman libdrm seatd</code></pre>
+<p>Then build and install:</p>
+<pre><code>make
+sudo make install</code></pre>
+<p>This installs <code>swindle</code> and <code>smsg</code> to <code>/usr/local/bin</code> and an example config to <code>/etc/swindle</code>. There is also a Nix flake in the repo (<code>nix build</code>, <code>nix run</code>).</p>
+</section>
+<section id="config">
+<h2>Your first config</h2>
+<p>Swindle refuses to start without a config file. It takes the first readable file it finds:</p>
+<ol>
+<li><code>swindle -c /path/to/config.lua</code></li>
+<li><code>$XDG_CONFIG_HOME/swindle/config.lua</code>, else <code>~/.config/swindle/config.lua</code></li>
+<li><code>/etc/swindle/config.lua</code></li>
+</ol>
+<p>Copy the example config and trim it down:</p>
+<pre><code>mkdir -p ~/.config/swindle
+cp /etc/swindle/config.lua ~/.config/swindle/config.lua</code></pre>
+<p>A minimal config that opens a terminal and a launcher looks like this:</p>
+<pre><code>sloppy_focus = true
+log_level = "error"
+
+appearance = {
+    border_px = 2,
+    gaps = 10,
+    root_color = 0x222222ff,
+    border_color = 0x00000000,
+    focus_color = 0xe8e8e8ff,
+    urgent_color = 0xff0000ff,
+    fullscreen_bg = 0x000000ff,
+}
+
+keyboard = { layout = "us" }
+
+monitors = {
+    { name = nil, scale = 1.0, layout = "dwindle", x = -1, y = -1 },
+}
+
+autostart = {}
+
+keybinds = {
+    { mods = {"logo"}, key = "q",     action = "spawn", args = {"foot"} },
+    { mods = {"logo"}, key = "space", action = "spawn", args = {"wofi", "--show", "drun"} },
+    { mods = {"logo"}, key = "w",     action = "killclient" },
+    { mods = {"logo"}, key = "f",     action = "togglefullscreen" },
+    { mods = {"logo", "shift"}, key = "e", action = "quit" },
+}
+
+for i = 1, 9 do
+    local key  = tostring(i)
+    local mask = 1 << (i - 1)
+    table.insert(keybinds, { mods = {"logo"},          key = key, action = "view", args = {tostring(mask)} })
+    table.insert(keybinds, { mods = {"logo", "shift"}, key = key, action = "tag",  args = {tostring(mask)} })
+end
+
+buttons = {
+    { mods = {"logo"}, button = "left",  action = "moveresize", args = {"move"} },
+    { mods = {"logo"}, button = "right", action = "moveresize", args = {"resize"} },
+}</code></pre>
+<p>Save the file while swindle runs and most changes apply instantly: appearance, keybinds and keyboard layout. Pointer settings take effect on newly plugged devices. Only <code>autostart</code> never re-runs. Check syntax without starting with <code>luac5.4 -p config.lua</code>.</p>
+</section>
+<section id="reference">
+<h2>Reference</h2>
+<h3>Input: touchpad vs mouse</h3>
+<p>Generic keys are the fallback. Per-class keys win when set, anything else falls back:</p>
+<pre><code>input = {
+    scroll_method = "2fg",
+    scroll_method_touchpad = "2fg",
+    scroll_method_mouse = "edge",
+    natural_scrolling = false,
+    natural_scrolling_touchpad = true,
+    natural_scrolling_mouse = false,
+    tap_to_click = true,
+    click_method = "button_areas",
+    accel_profile = "adaptive",
+    accel_speed = 0.0,
+}</code></pre>
+<h3>Keyboard</h3>
+<pre><code>keyboard = {
+    layout = "de",
+    variant = "",
+    options = "caps:escape",
+    model = "",
+}</code></pre>
+<h3>Rules and monitors</h3>
+<pre><code>rules = {
+    { app_id = "Gimp", floating = true, monitor = -1 },
+    { app_id = "firefox", tags = 1 << 8, monitor = -1 },
+}
+
+monitors = {
+    { name = nil, mfact = 0.55, nmaster = 1, scale = 1.0,
+      layout = "dwindle", x = -1, y = -1 },
+}</code></pre>
+<h3>Autostart</h3>
+<pre><code>autostart = {
+    "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_SESSION_TYPE",
+    "waybar",
+}</code></pre>
+</section>
+<section id="actions">
+<h2>Actions</h2>
+<p>Every keybind maps to an action. The dwindle helpers are <code>setmfact</code>, <code>zoom</code> and <code>focusstack</code>:</p>
+<pre><code>{ mods = {"logo"},          key = "i", action = "setmfact",   args = {"+0.05"} },
+{ mods = {"logo"},          key = "d", action = "setmfact",   args = {"-0.05"} },
+{ mods = {"logo", "shift"}, key = "m", action = "zoom" },
+{ mods = {"logo"},          key = "n", action = "focusstack", args = {"next"} },
+{ mods = {"logo"},          key = "p", action = "focusstack", args = {"prev"} },</code></pre>
+<table>
+<thead>
+<tr><th>Action</th><th>Args</th><th>Does</th></tr>
+</thead>
+<tbody>
+<tr><td><code>spawn</code></td><td>argv</td><td>run a program</td></tr>
+<tr><td><code>killclient</code></td><td></td><td>close the focused window</td></tr>
+<tr><td><code>togglefloating</code></td><td></td><td>float or unfloat</td></tr>
+<tr><td><code>togglefullscreen</code></td><td></td><td>fullscreen toggle</td></tr>
+<tr><td><code>togglegaps</code></td><td></td><td>gaps on or off, this monitor</td></tr>
+<tr><td><code>togglesmartgaps</code></td><td></td><td>smart gaps on or off</td></tr>
+<tr><td><code>setgaps</code></td><td><code>"+5"</code> / <code>"10"</code></td><td>relative or absolute gaps</td></tr>
+<tr><td><code>setmfact</code></td><td><code>"+0.05"</code> / <code>"55"</code></td><td>split ratio, delta or percent</td></tr>
+<tr><td><code>zoom</code></td><td></td><td>swap focused with first tiled</td></tr>
+<tr><td><code>focusstack</code></td><td><code>"next"</code> / <code>"prev"</code></td><td>cycle focus</td></tr>
+<tr><td><code>focusdir</code> / <code>swapdir</code></td><td>direction</td><td>directional focus or swap</td></tr>
+<tr><td><code>view</code> / <code>toggleview</code></td><td>mask or <code>"all"</code></td><td>show tags</td></tr>
+<tr><td><code>tag</code> / <code>toggletag</code></td><td>mask</td><td>assign window to tags</td></tr>
+<tr><td><code>focusmon</code> / <code>tagmon</code></td><td><code>"left"</code> / <code>"right"</code></td><td>across monitors</td></tr>
+<tr><td><code>setlayout</code></td><td><code>0</code> / <code>1</code></td><td>floating or dwindle</td></tr>
+<tr><td><code>moveresize</code></td><td><code>"move"</code> / <code>"resize"</code></td><td>mouse drag action</td></tr>
+<tr><td><code>chvt</code></td><td>number</td><td>switch virtual terminal</td></tr>
+<tr><td><code>quit</code></td><td></td><td>exit swindle</td></tr>
+</tbody>
+</table>
+</section>
+<section id="trouble">
+<h2>Help</h2>
+<ul>
+<li><strong>No config found.</strong> Copy the example to <code>~/.config/swindle/config.lua</code> or pass <code>-c</code>.</li>
+<li><strong>Wrong keyboard layout.</strong> Set <code>keyboard.layout</code>. It hot-reloads.</li>
+<li><strong>XWayland socket busy.</strong> Another session owns it. Harmless, or start from a TTY.</li>
+<li><strong>No bar or launcher.</strong> Swindle ships none. Add <code>waybar</code> and <code>wofi</code> or <code>rofi</code> yourself.</li>
+<li><strong>Broken syntax.</strong> Run <code>luac5.4 -p config.lua</code> before restarting.</li>
+</ul>
+<p>Still stuck? Open an issue at <a href="https://github.com/hakuxyz/swindle">hakuxyz/swindle</a>.</p>
+</section>
+</main>
+<footer>
+<p>Swindle docs. GPLv3. <span id="year"></span></p>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>
